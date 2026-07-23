@@ -140,6 +140,16 @@ app.get('/toggle-mode', (req, res) => {
 app.get('/profile/update', (req, res) => res.redirect('/profile'));
 app.get('/profile/upload', (req, res) => res.redirect('/profile'));
 
+// Interactive Presentation Route
+app.get('/presentation', (req, res) => {
+  res.render('presentation');
+});
+
+// PPTX Download Route
+app.get('/SecureBank_Pro_Presentation.pptx', (req, res) => {
+  res.download(path.join(__dirname, 'SecureBank_Pro_Presentation.pptx'));
+});
+
 // Home Page (Lab Stats & Counter Dashboard)
 app.get('/', (req, res) => {
   const sessionId = req.session.session_id;
