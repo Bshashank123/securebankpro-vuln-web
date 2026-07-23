@@ -26,8 +26,11 @@ app.use(session({
   cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 hours
 }));
 
-// Configure File Upload Storage (Multer)
-const uploadDir = path.join(__dirname, 'public', 'uploads');
+const os = require('os');
+const isVercel = !!process.env.VERCEL;
+const uploadDir = isVercel
+  ? path.join(os.tmpdir(), 'uploads')
+  : path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -519,11 +522,15 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// Start Express Server
-app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`  SecureBank Pro Lab Server Running on Port ${PORT}`);
-  console.log(`  Access URL: http://localhost:${PORT}`);
-  console.log(`  Lab Mode: 2018 Neutral Enterprise Aesthetic`);
-  console.log(`=======================================================`);
-});
+// Start Express Server / Export for Vercel Serverless
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`=======================================================`);
+    console.log(`  SecureBank Pro Lab Server Running on Port ${PORT}`);
+    console.log(`  Access URL: http://localhost:${PORT}`);
+    console.log(`  Lab Mode: 2018 Neutral Enterprise Aesthetic`);
+    console.log(`=======================================================`);
+  });
+}
+
+module.exports = app;

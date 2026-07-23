@@ -1,7 +1,9 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.join(__dirname, 'securebank.db');
+const os = require('os');
+const isVercel = !!process.env.VERCEL;
+const dbPath = isVercel ? path.join(os.tmpdir(), 'securebank.db') : path.join(__dirname, 'securebank.db');
 const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
