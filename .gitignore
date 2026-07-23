@@ -1,0 +1,6 @@
+node_modules/
+database/securebank.db
+public/uploads/*
+!public/uploads/default.png
+.DS_Store
+*.log

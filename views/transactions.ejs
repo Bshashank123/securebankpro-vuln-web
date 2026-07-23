@@ -1,0 +1,54 @@
+<%- include('partials/header') %>
+
+<div class="page-title">Transaction Receipt Details</div>
+
+<% if (error) { %>
+  <div class="alert alert-danger"><%= error %></div>
+<% } %>
+
+<% if (transaction) { %>
+  <div class="card">
+    <div class="card-header">Transaction Receipt #<%= transaction.id %></div>
+
+    <table class="table" style="max-width: 600px;">
+      <tr>
+        <th style="width: 200px;">Transaction Reference ID</th>
+        <td><code>#<%= transaction.id %></code></td>
+      </tr>
+      <tr>
+        <th>Sender Name</th>
+        <td><%= transaction.sender_name %> (ID: <%= transaction.sender_id %>)</td>
+      </tr>
+      <tr>
+        <th>Recipient Name</th>
+        <td><%= transaction.receiver_name %> (ID: <%= transaction.receiver_id %>)</td>
+      </tr>
+      <tr>
+        <th>Transfer Amount</th>
+        <td><strong>$<%= transaction.amount.toFixed(2) %></strong></td>
+      </tr>
+      <tr>
+        <th>Timestamp</th>
+        <td><%= transaction.timestamp %></td>
+      </tr>
+      <tr>
+        <th>Payment Memo / Note</th>
+        <td><%= transaction.description %></td>
+      </tr>
+    </table>
+
+    <div style="margin-top: 15px;">
+      <a href="/dashboard" class="btn btn-secondary">&laquo; Back to Dashboard</a>
+    </div>
+  </div>
+<% } %>
+
+<div class="card">
+  <div class="card-header" style="font-size: 13px;">Vulnerability Focus: Broken Access Control (IDOR)</div>
+  <p style="font-size: 12px; color: var(--text-muted);">
+    <strong>Attack Mode:</strong> Endpoint <code>/transaction?id=101</code> queries transaction record directly from database parameter <code>id</code> without verifying whether current logged-in user (<code><%= user ? user.username : 'guest' %></code>) is sender or receiver.<br>
+    <strong>Secure Mode:</strong> Server validates that transaction <code>sender_id</code> or <code>receiver_id</code> matches session user ID before rendering receipt.
+  </p>
+</div>
+
+<%- include('partials/footer') %>

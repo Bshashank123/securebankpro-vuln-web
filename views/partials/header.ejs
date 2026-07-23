@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecureBank Pro - Enterprise Web Security Lab</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Mode Banner Indicator -->
+  <div class="mode-banner <%= isSecureMode ? 'secure-mode' : 'attack-mode' %>">
+    MODE: <strong><%= isSecureMode ? 'SECURE IMPLEMENTATION (PROTECTED)' : 'ATTACK IMPLEMENTATION (VULNERABLE)' %></strong>
+    <a href="/toggle-mode" class="mode-toggle-btn">
+      SWITCH TO <%= isSecureMode ? 'ATTACK MODE' : 'SECURE MODE' %>
+    </a>
+  </div>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">
+      SecureBank <span>Pro</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="/">Home</a></li>
+      <% if (user) { %>
+        <li><a href="/dashboard">Dashboard</a></li>
+        <li><a href="/transfer">Transfer</a></li>
+        <li><a href="/transactions">Transactions</a></li>
+        <li><a href="/profile">Profile</a></li>
+        <% if (user.role === 'admin') { %>
+          <li><a href="/admin">Admin Panel</a></li>
+        <% } %>
+        <li><a href="/logout" class="btn-logout">Logout (<%= user.username %>)</a></li>
+      <% } else { %>
+        <li><a href="/login">Login</a></li>
+      <% } %>
+    </ul>
+  </nav>
+
+  <div class="container">

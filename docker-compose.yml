@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  securebank-pro:
+    build: .
+    container_name: securebank_pro_lab
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped

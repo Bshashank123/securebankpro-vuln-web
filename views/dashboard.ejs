@@ -1,0 +1,72 @@
+<%- include('partials/header') %>
+
+<div class="page-title">Account Dashboard</div>
+
+<div class="row">
+  <div class="col-4">
+    <div class="card">
+      <div class="card-header">Account Overview</div>
+      <div style="text-align: center; margin: 15px 0;">
+        <img src="/uploads/<%= user.profile_pic %>" alt="Profile Picture" class="profile-avatar">
+        <h3 style="margin-top: 10px; font-size: 16px;"><%= user.full_name %></h3>
+        <p style="color: var(--text-muted); font-size: 12px;"><%= user.email %></p>
+      </div>
+      <div class="stat-box" style="border-top-color: var(--navy-primary);">
+        <div class="stat-label">Available Balance</div>
+        <div class="stat-number">$<%= user.balance.toFixed(2) %></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-8" style="flex: 1 1 calc(66.666% - 14px);">
+    <div class="card">
+      <div class="card-header">Quick Banking Services</div>
+      <div class="row">
+        <div class="col-6">
+          <div style="padding: 15px; border: 1px solid var(--border-color); border-radius: 4px; text-align: center;">
+            <h4 style="font-size: 14px; margin-bottom: 8px;">Money Transfer</h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Send funds to another bank account instantly.</p>
+            <a href="/transfer" class="btn btn-primary" style="width: 100%;">Make Transfer</a>
+          </div>
+        </div>
+        <div class="col-6">
+          <div style="padding: 15px; border: 1px solid var(--border-color); border-radius: 4px; text-align: center;">
+            <h4 style="font-size: 14px; margin-bottom: 8px;">Transaction History</h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">View processed transaction receipts and statements.</p>
+            <a href="/transactions" class="btn btn-secondary" style="width: 100%;">View History</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Recent Account Transactions</div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Sender</th>
+            <th>Recipient</th>
+            <th>Amount</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% transactions.forEach(t => { %>
+            <tr>
+              <td>#<%= t.id %></td>
+              <td><%= t.sender_name %></td>
+              <td><%= t.receiver_name %></td>
+              <td>$<%= t.amount.toFixed(2) %></td>
+              <td><%= t.timestamp %></td>
+              <td><a href="/transaction?id=<%= t.id %>" class="btn btn-sm btn-secondary">Details</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

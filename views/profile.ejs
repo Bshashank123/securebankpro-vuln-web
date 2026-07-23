@@ -1,0 +1,88 @@
+<%- include('partials/header') %>
+
+<div class="page-title">Profile Management</div>
+
+<% if (message) { %>
+  <div class="alert alert-success"><%= message %></div>
+<% } %>
+
+<% if (error) { %>
+  <div class="alert alert-danger"><%= error %></div>
+<% } %>
+
+<div class="row">
+  <!-- Profile Info & Avatar Upload -->
+  <div class="col-4">
+    <div class="card">
+      <div class="card-header">Profile Picture</div>
+      <div style="text-align: center; margin-bottom: 15px;">
+        <img src="/uploads/<%= user.profile_pic %>" alt="Avatar" class="profile-avatar" style="width: 120px; height: 120px;">
+      </div>
+
+      <form action="/profile/upload" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="profile_pic">Upload New Avatar</label>
+          <input type="file" id="profile_pic" name="profile_pic" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Upload Picture</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-header" style="font-size: 13px;">Vulnerability Focus: File Upload</div>
+      <p style="font-size: 12px; color: var(--text-muted);">
+        <strong>Attack Mode:</strong> Upload endpoint accepts any file extension without MIME/extension validation and stores it publicly.<br>
+        <strong>Secure Mode:</strong> Server validates image file headers, enforces 2MB size limit, and renames file securely.
+      </p>
+    </div>
+  </div>
+
+  <!-- Profile Details & About Me -->
+  <div class="col-8" style="flex: 1 1 calc(66.666% - 14px);">
+    <div class="card">
+      <div class="card-header">Account Profile Details</div>
+      <form action="/profile/update" method="POST">
+        <div class="form-group">
+          <label for="full_name">Full Name</label>
+          <input type="text" id="full_name" name="full_name" class="form-control" value="<%= user.full_name %>" required>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input type="email" id="email" name="email" class="form-control" value="<%= user.email %>" required>
+        </div>
+
+        <div class="form-group">
+          <label for="about_me">About Me (Bio)</label>
+          <textarea id="about_me" name="about_me" class="form-control" rows="4" placeholder="Enter bio..."><%= user.about_me %></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Profile</button>
+      </form>
+    </div>
+
+    <!-- Render Stored About Me -->
+    <div class="card">
+      <div class="card-header">Public Bio Display (Stored XSS Demo Area)</div>
+      <div style="padding: 12px; background-color: var(--bg-main); border: 1px solid var(--border-color); border-radius: 3px;">
+        <% if (isSecureMode) { %>
+          <!-- SECURE MODE: Escaped HTML Rendering -->
+          <div style="font-size: 13px;"><%= user.about_me %></div>
+        <% } else { %>
+          <!-- ATTACK MODE: Raw Unsanitized Unescaped Output -->
+          <div style="font-size: 13px;"><%- user.about_me %></div>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" style="font-size: 13px;">Vulnerability Focus: Stored XSS</div>
+      <p style="font-size: 12px; color: var(--text-muted);">
+        <strong>Attack Mode:</strong> About Me input is stored directly in DB and rendered using raw HTML output (<code>&lt;%- ... %&gt;</code>). Inserting <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code> executes on profile load.<br>
+        <strong>Secure Mode:</strong> HTML tags are safely encoded using EJS standard escaping (<code>&lt;%= ... %&gt;</code>).
+      </p>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

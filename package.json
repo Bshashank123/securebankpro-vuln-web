@@ -1,0 +1,17 @@
+{
+  "name": "securebank-pro",
+  "version": "1.0.0",
+  "description": "Intentionally Vulnerable Banking Portal for Educational Web Security Learning",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "ejs": "^3.1.9",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "multer": "^1.4.5-lts.1",
+    "sqlite3": "^5.1.7"
+  }
+}

@@ -1,0 +1,146 @@
+<%- include('partials/header') %>
+
+<div class="page-title">Laboratory Dashboard & Telemetry</div>
+
+<div class="alert alert-info">
+  Welcome to SecureBank Pro. This environment demonstrates web security vulnerabilities side-by-side with secure mitigations. 
+  Current mode: <strong><%= isSecureMode ? 'SECURE MODE (Defenses active)' : 'ATTACK MODE (Vulnerabilities active)' %></strong>.
+</div>
+
+<!-- Telemetry Counter Section -->
+<div class="card">
+  <div class="card-header">Global Laboratory Telemetry Counters</div>
+  
+  <div class="row" style="margin-bottom: 20px;">
+    <div class="col-4">
+      <div class="stat-box">
+        <div class="stat-label">Total Lab Sessions</div>
+        <div class="stat-number"><%= stats.totalSessions %></div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="stat-box" style="border-top-color: #27ae60;">
+        <div class="stat-label">Participants Solved All 6 Vulns</div>
+        <div class="stat-number" style="color: #27ae60;"><%= stats.solvedAllSix %></div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="stat-box" style="border-top-color: #c0392b;">
+        <div class="stat-label">Total Exploit Attempts</div>
+        <div class="stat-number" style="color: #c0392b;"><%= stats.totalAttempts %></div>
+      </div>
+    </div>
+  </div>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Vulnerability Type</th>
+        <th>Target Endpoint</th>
+        <th>Exploit Attempts</th>
+        <th>Successful Solves</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% telemetry.forEach(t => { %>
+        <tr>
+          <td><strong><%= t.name %></strong></td>
+          <td><code><%= getEndpoint(t.vuln_key) %></code></td>
+          <td><%= t.attempt_count %></td>
+          <td><%= t.solve_count %></td>
+          <td>
+            <% if (userProgress && userProgress[t.vuln_key]) { %>
+              <span class="badge badge-success">Completed</span>
+            <% } else { %>
+              <span class="badge badge-secondary">Pending</span>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<!-- Mode Differences Explanation Card -->
+<div class="card" style="border-left: 4px solid var(--navy-primary);">
+  <div class="card-header">Architectural Comparison: Attack Mode vs. Secure Mode</div>
+  <div class="row">
+    <div class="col-6">
+      <div style="padding: 12px; background: #fdf2f2; border: 1px solid #f5c6cb; border-radius: 3px;">
+        <h4 style="color: #721c24; margin-bottom: 8px; font-size: 14px;">ATTACK MODE (Vulnerable Environment)</h4>
+        <ul style="padding-left: 18px; font-size: 12px; line-height: 1.6; color: #721c24;">
+          <li><strong>SQL Injection:</strong> Directly interpolates user inputs into SQL string concatenation.</li>
+          <li><strong>Stored XSS:</strong> Stores raw HTML/JS in database and outputs unescaped HTML in templates.</li>
+          <li><strong>IDOR:</strong> Directly queries records by URL parameter <code>?id=...</code> without session ownership validation.</li>
+          <li><strong>CSRF:</strong> Processes <code>/transfer</code> POST requests without anti-CSRF token verification.</li>
+          <li><strong>Weak Auth:</strong> Allows brute-force attempts without account lockout; default <code>admin/admin</code> credentials.</li>
+          <li><strong>File Upload:</strong> Accepts any uploaded file extension (`.txt`, `.html`, `.exe`) into public web folder.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="col-6">
+      <div style="padding: 12px; background: #f0fff4; border: 1px solid #c3e6cb; border-radius: 3px;">
+        <h4 style="color: #155724; margin-bottom: 8px; font-size: 14px;">SECURE MODE (Protected Environment)</h4>
+        <ul style="padding-left: 18px; font-size: 12px; line-height: 1.6; color: #155724;">
+          <li><strong>Parameterized Queries:</strong> Separates SQL logic from data parameters to prevent syntax manipulation.</li>
+          <li><strong>Contextual Output Escaping:</strong> Encodes HTML entities to neutralize script execution tags.</li>
+          <li><strong>Access Control Verification:</strong> Validates session user ownership before returning transaction data.</li>
+          <li><strong>Anti-CSRF Tokens:</strong> Validates cryptographically signed <code>_csrf</code> token per form submission.</li>
+          <li><strong>Account Lockout:</strong> Enforces brute-force defense (locks out session after 5 failed attempts).</li>
+          <li><strong>Strict File Validation:</strong> Enforces MIME-type validation, size limits, and randomized UUID filenames.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-6">
+    <div class="card">
+      <div class="card-header">Six Intentional Vulnerabilities</div>
+      <ul style="padding-left: 20px; line-height: 1.8;">
+        <li><strong>SQL Injection:</strong> Authentication bypass on <code>/login</code></li>
+        <li><strong>Stored XSS:</strong> Unsanitized rendering in <code>/profile</code> About Me</li>
+        <li><strong>IDOR:</strong> Arbitrary account history viewing via <code>/transactions?id=...</code></li>
+        <li><strong>CSRF:</strong> Unprotected endpoint on <code>/transfer</code></li>
+        <li><strong>Weak Auth:</strong> Default credentials & lack of lockout on <code>/login</code></li>
+        <li><strong>File Upload:</strong> Arbitrary file type upload on <code>/profile</code> picture</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-6">
+    <div class="card">
+      <div class="card-header">Default Lab Credentials</div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Password</th>
+            <th>Role</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>admin</code></td>
+            <td><code>admin</code></td>
+            <td>Administrator</td>
+          </tr>
+          <tr>
+            <td><code>john_doe</code></td>
+            <td><code>Password123</code></td>
+            <td>Standard User</td>
+          </tr>
+          <tr>
+            <td><code>alice_smith</code></td>
+            <td><code>AlicePass2018</code></td>
+            <td>Standard User</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
