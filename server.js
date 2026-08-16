@@ -193,10 +193,6 @@ function recordAttempt(vulnKey, req, isSuccess = false) {
     }
     if (!req.session.progress[vulnKey]) {
       req.session.progress[vulnKey] = true;
-      // Increment global solved counter
-      counterApiRequest('up', 'solved', (err, val) => {
-        if (!err && val) globalCounterCache.solved = parseInt(val, 10);
-      });
       // Increment global vuln solved on CountAPI
       counterApiRequest('up', `${vulnKey}_solved`, (err, val) => {
         if (!err && val && globalCounterCache.vulns[vulnKey]) {
@@ -205,6 +201,16 @@ function recordAttempt(vulnKey, req, isSuccess = false) {
       });
       // Update local db telemetry solve count
       db.run(`UPDATE telemetry SET solve_count = solve_count + 1 WHERE vuln_key = ?`, [vulnKey]);
+
+      // Check if all 6 unique vulnerabilities have been solved in this session
+      const solvedCount = Object.keys(req.session.progress).length;
+      if (solvedCount === 6 && !req.session.completedAllSix) {
+        req.session.completedAllSix = true;
+        // Increment global solved (all 6) counter on CountAPI
+        counterApiRequest('up', 'solved', (err, val) => {
+          if (!err && val) globalCounterCache.solved = parseInt(val, 10);
+        });
+      }
     }
     // Also track in background database for persistence
     db.run(`INSERT OR IGNORE INTO session_progress (session_id) VALUES (?)`, [req.session.session_id], () => {
