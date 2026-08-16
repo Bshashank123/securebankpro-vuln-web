@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SecureBank Pro - Enterprise Web Security Lab</title>
   <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
 
@@ -14,6 +15,11 @@
     <a href="/toggle-mode" class="mode-toggle-btn">
       SWITCH TO <%= isSecureMode ? 'ATTACK MODE' : 'SECURE MODE' %>
     </a>
+  </div>
+
+  <!-- Global Telemetry Stats Banner -->
+  <div style="background-color: #ebedef; color: #2c3e50; text-align: center; padding: 4px; font-size: 11px; border-bottom: 1px solid #dcdfe3; font-weight: bold; letter-spacing: 0.5px;">
+    GLOBAL STATISTICS &bull; Users Tried: <span style="color: #2980b9;"><%= globalTried %></span> &bull; Successful Users: <span style="color: #27ae60;"><%= globalSolved %></span>
   </div>
 
   <!-- Navigation Bar -->

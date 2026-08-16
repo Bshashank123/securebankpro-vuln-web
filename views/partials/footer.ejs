@@ -1,5 +1,134 @@
   </div> <!-- /.container -->
 
+  <!-- Solve Popup Modal Component -->
+  <% if (typeof justSolved !== 'undefined' && justSolved) { %>
+    <div id="solveOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 9999;">
+      <div style="background: #fff; width: 90%; max-width: 600px; border-radius: 4px; border-top: 5px solid #27ae60; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-family: sans-serif; overflow: hidden; animation: slideDown 0.3s ease-out;">
+        
+        <!-- Modal Header -->
+        <div style="background: #2c3e50; color: #fff; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; font-size: 16px; font-weight: bold; letter-spacing: 0.5px;">✓ VULNERABILITY SOLVED!</h3>
+          <span style="font-size: 11px; background: #27ae60; padding: 3px 6px; border-radius: 2px; font-weight: bold;">ATTACK SUCCESSFUL</span>
+        </div>
+
+        <!-- Modal Body -->
+        <div style="padding: 20px; max-height: 400px; overflow-y: auto; color: #2c3e50; font-size: 13px; line-height: 1.6;">
+          
+          <% if (justSolved === 'sqli') { %>
+            <h4 style="color: #c0392b; font-size: 14px; margin-bottom: 8px;">Vulnerability: SQL Injection (SQLi)</h4>
+            <p><strong>How the Attack Works:</strong><br>
+            In Attack Mode, user inputs are directly concatenated into the SQL query string. By entering SQL control characters like single quotes (<code>'</code>) or comment indicators (<code>--</code>), you modified the logical execution plan of the database engine, bypassing password validation entirely.</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            <h4 style="color: #27ae60; font-size: 14px; margin-bottom: 8px;">Remediation & Secure Fix:</h4>
+            <p>Implement <strong>Parameterized Queries (Prepared Statements)</strong>. Placeholders (<code>?</code>) ensure the SQL engine pre-compiles the query and treats user inputs strictly as literal values rather than executable syntax.</p>
+            <pre style="background: #f4f6f9; border: 1px solid #dcdfe3; padding: 10px; border-radius: 3px; font-family: monospace; font-size: 11px; overflow-x: auto;">// SECURE CODE
+db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password]);</pre>
+          <% } else if (justSolved === 'xss') { %>
+            <h4 style="color: #c0392b; font-size: 14px; margin-bottom: 8px;">Vulnerability: Stored Cross-Site Scripting (XSS)</h4>
+            <p><strong>How the Attack Works:</strong><br>
+            The application saves raw, unsanitized HTML/JS inputs in the profile bio. In Attack Mode, the template renders this input using the unescaped EJS directive (<code>&lt;%- %&gt;</code>), forcing the browser to parse and execute your script payload inside the DOM context.</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            <h4 style="color: #27ae60; font-size: 14px; margin-bottom: 8px;">Remediation & Secure Fix:</h4>
+            <p>Enforce <strong>Contextual Output Encoding</strong>. By switching to the escaped EJS output directive (<code>&lt;%= %&gt;</code>), the browser encodes tags into harmless HTML entities (e.g. <code>&lt;</code> becomes <code>&amp;lt;</code>).</p>
+            <pre style="background: #f4f6f9; border: 1px solid #dcdfe3; padding: 10px; border-radius: 3px; font-family: monospace; font-size: 11px; overflow-x: auto;">&lt;!-- SECURE CODE --&gt;
+&lt;div&gt;&lt;%= user.about_me %&gt;&lt;/div&gt;</pre>
+          <% } else if (justSolved === 'idor') { %>
+            <h4 style="color: #c0392b; font-size: 14px; margin-bottom: 8px;">Vulnerability: Insecure Direct Object Reference (IDOR)</h4>
+            <p><strong>How the Attack Works:</strong><br>
+            The receipt page queries transactions based solely on the user-supplied <code>id</code> parameter from the URL. Because the backend does not verify request authorization, any user can access any other user's transaction records simply by changing the ID number.</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            <h4 style="color: #27ae60; font-size: 14px; margin-bottom: 8px;">Remediation & Secure Fix:</h4>
+            <p>Perform strict <strong>Access Control Checks</strong> on the backend. Ensure the logged-in session user's ID matches either the <code>sender_id</code> or the <code>receiver_id</code> of the requested transaction record before returning data.</p>
+            <pre style="background: #f4f6f9; border: 1px solid #dcdfe3; padding: 10px; border-radius: 3px; font-family: monospace; font-size: 11px; overflow-x: auto;">// SECURE CODE
+db.get("SELECT * FROM transactions WHERE id = ? AND (sender_id = ? OR receiver_id = ?)", [txnId, currentUserId, currentUserId]);</pre>
+          <% } else if (justSolved === 'csrf') { %>
+            <h4 style="color: #c0392b; font-size: 14px; margin-bottom: 8px;">Vulnerability: Cross-Site Request Forgery (CSRF)</h4>
+            <p><strong>How the Attack Works:</strong><br>
+            The transfer endpoint executes state changes relying solely on standard browser cookies. A malicious third-party site can make a victim's browser issue an automatic hidden form submission to <code>/transfer</code>, executing unauthorized actions within the authenticated session.</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            <h4 style="color: #27ae60; font-size: 14px; margin-bottom: 8px;">Remediation & Secure Fix:</h4>
+            <p>Use cryptographically secure, random <strong>Anti-CSRF Tokens</strong>. Generate a unique token per session, insert it as a hidden field in forms, and validate that the submitted token matches the session value on all POST requests.</p>
+            <pre style="background: #f4f6f9; border: 1px solid #dcdfe3; padding: 10px; border-radius: 3px; font-family: monospace; font-size: 11px; overflow-x: auto;">// SECURE CODE
+if (!_csrf || _csrf !== req.session.csrfToken) {
+  return res.status(403).send("CSRF verification failed.");
+}</pre>
+          <% } else if (justSolved === 'weakauth') { %>
+            <h4 style="color: #c0392b; font-size: 14px; margin-bottom: 8px;">Vulnerability: Weak Authentication & Brute Force</h4>
+            <p><strong>How the Attack Works:</strong><br>
+            The system used weak, easily guessable default accounts (<code>admin/admin</code>) and lacked brute-force protection, allowing automated dictionary/brute-force tools to submit login requests indefinitely.</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            <h4 style="color: #27ae60; font-size: 14px; margin-bottom: 8px;">Remediation & Secure Fix:</h4>
+            <p>Implement <strong>Account Lockout Policies</strong> and enforce password complexity. Increment failure counts on failed login attempts and lock out sessions temporarily once the threshold is crossed.</p>
+            <pre style="background: #f4f6f9; border: 1px solid #dcdfe3; padding: 10px; border-radius: 3px; font-family: monospace; font-size: 11px; overflow-x: auto;">// SECURE CODE
+if (req.session.failedLoginAttempts >= 5) {
+  return res.render("login", { error: "Account locked. Try again later." });
+}</pre>
+          <% } else if (justSolved === 'upload') { %>
+            <h4 style="color: #c0392b; font-size: 14px; margin-bottom: 8px;">Vulnerability: Unvalidated File Upload</h4>
+            <p><strong>How the Attack Works:</strong><br>
+            In Attack Mode, the file upload endpoint accepts any file extension (including executable scripts like <code>.txt</code> or <code>.html</code>) and stores it using its original filename in the public web root directory, leading to storage abuse and remote code execution risks.</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+            <h4 style="color: #27ae60; font-size: 14px; margin-bottom: 8px;">Remediation & Secure Fix:</h4>
+            <p>Implement strict <strong>MIME-Type & Extension Whitelists</strong>. Restrict uploads to safe image types, validate headers, and rename all files to randomized hashes (e.g., UUIDs) to prevent direct path execution.</p>
+            <pre style="background: #f4f6f9; border: 1px solid #dcdfe3; padding: 10px; border-radius: 3px; font-family: monospace; font-size: 11px; overflow-x: auto;">// SECURE CODE
+if (!allowedExts.includes(originalExt) || !req.file.mimetype.startsWith("image/")) {
+  fs.unlinkSync(req.file.path); // delete file
+}</pre>
+          <% } %>
+
+        </div>
+
+        <!-- Modal Footer -->
+        <div style="background: #f4f6f9; padding: 12px 20px; text-align: right; border-top: 1px solid #dcdfe3;">
+          <button onclick="closeSolveModal()" class="btn btn-primary" style="padding: 6px 16px; font-size: 12px;">Dismiss & Continue</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Confetti & Modal Trigger Script -->
+    <script>
+      // Trigger canvas-confetti
+      if (typeof confetti === 'function') {
+        var duration = 2 * 1000;
+        var end = Date.now() + duration;
+
+        (function frame() {
+          confetti({
+            particleCount: 3,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 }
+          });
+          confetti({
+            particleCount: 3,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 }
+          });
+
+          if (Date.now() < end) {
+            requestAnimationFrame(frame);
+          }
+        }());
+      }
+
+      function closeSolveModal() {
+        var overlay = document.getElementById('solveOverlay');
+        if (overlay) {
+          overlay.style.display = 'none';
+        }
+      }
+    </script>
+  <% } %>
+
+  <style>
+    @keyframes slideDown {
+      from { transform: translateY(-30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+
   <footer class="footer">
     <div class="container">
       SecureBank Pro Enterprise Security Demonstration Portal (2018 Edition) &bull; 

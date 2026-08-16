@@ -70,7 +70,20 @@ app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.isSecureMode = req.session.isSecureMode;
   res.locals.csrfToken = req.session.csrfToken;
-  next();
+
+  // Retrieve global stats
+  db.get(`SELECT COUNT(DISTINCT session_id) as tried FROM session_progress`, [], (err, r1) => {
+    db.get(`SELECT COUNT(*) as solved FROM completed_labs`, [], (err, r2) => {
+      res.locals.globalTried = (r1 && r1.tried) || 0;
+      res.locals.globalSolved = (r2 && r2.solved) || 0;
+      
+      // Pass down justSolved and then clear it
+      res.locals.justSolved = req.session.justSolved || null;
+      delete req.session.justSolved;
+      
+      next();
+    });
+  });
 });
 
 // Telemetry Helper Functions
@@ -83,6 +96,10 @@ function recordAttempt(vulnKey, req, isSuccess = false) {
   );
 
   const sessionId = req.session.session_id;
+
+  if (isSuccess) {
+    req.session.justSolved = vulnKey;
+  }
 
   // Initialize progress record for session
   db.run(
