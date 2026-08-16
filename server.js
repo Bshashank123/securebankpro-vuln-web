@@ -1,5 +1,5 @@
 const express = require('express');
-const session = require('express-session');
+const cookieSession = require('cookie-session');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -18,12 +18,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Session Management
-app.use(session({
-  secret: 'securebank_2018_lab_secret_key',
-  resave: false,
-  saveUninitialized: true,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+// Session Management (cookie-based, works on serverless/Vercel)
+app.use(cookieSession({
+  name: 'sbpro_session',
+  keys: ['securebank_2018_lab_secret_key', 'securebank_backup_key_2018'],
+  maxAge: 24 * 60 * 60 * 1000 // 24 hours
 }));
 
 const os = require('os');
@@ -600,17 +599,15 @@ app.get('/reset-lab', (req, res) => {
     db.run(`UPDATE telemetry SET attempt_count = 0, solve_count = 0, last_attempt = NULL`);
     db.run(`DELETE FROM completed_labs`);
     db.run(`DELETE FROM session_progress`);
-    req.session.destroy(() => {
-      res.redirect('/');
-    });
+    req.session = null;
+    res.redirect('/');
   });
 });
 
 // Logout Route
 app.get('/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.redirect('/login');
-  });
+  req.session = null;
+  res.redirect('/login');
 });
 
 // Start Express Server / Export for Vercel Serverless
