@@ -149,8 +149,6 @@ function recordAttempt(vulnKey, req, isSuccess = false) {
     [timestamp, vulnKey]
   );
 
-  const sessionId = req.session.session_id;
-
   // Increment global tried counter only once per session
   if (!req.session.triedCounted) {
     req.session.triedCounted = true;
@@ -161,32 +159,25 @@ function recordAttempt(vulnKey, req, isSuccess = false) {
 
   if (isSuccess) {
     req.session.justSolved = vulnKey;
-  }
-
-  // Initialize progress record for session
-  db.run(
-    `INSERT OR IGNORE INTO session_progress (session_id) VALUES (?)`,
-    [sessionId],
-    () => {
-      if (isSuccess) {
-        // Track which vulns this session has already solved to avoid double-counting
-        if (!req.session.solvedVulns) req.session.solvedVulns = {};
-        
-        if (!req.session.solvedVulns[vulnKey]) {
-          req.session.solvedVulns[vulnKey] = true;
-          // Increment global solved counter for each unique vuln solve
-          counterApiRequest('up', 'solved', (err, val) => {
-            if (!err && val) globalCounterCache.solved = parseInt(val, 10);
-          });
-        }
-
-        db.run(`UPDATE telemetry SET solve_count = solve_count + 1 WHERE vuln_key = ?`, [vulnKey]);
-        db.run(`UPDATE session_progress SET ${vulnKey} = 1 WHERE session_id = ?`, [sessionId], () => {
-          checkCompletion(sessionId);
-        });
-      }
+    if (!req.session.progress) {
+      req.session.progress = {};
     }
-  );
+    if (!req.session.progress[vulnKey]) {
+      req.session.progress[vulnKey] = true;
+      // Increment global solved counter
+      counterApiRequest('up', 'solved', (err, val) => {
+        if (!err && val) globalCounterCache.solved = parseInt(val, 10);
+      });
+      // Update local db telemetry solve count
+      db.run(`UPDATE telemetry SET solve_count = solve_count + 1 WHERE vuln_key = ?`, [vulnKey]);
+    }
+    // Also track in background database for persistence
+    db.run(`INSERT OR IGNORE INTO session_progress (session_id) VALUES (?)`, [req.session.session_id], () => {
+      db.run(`UPDATE session_progress SET ${vulnKey} = 1 WHERE session_id = ?`, [req.session.session_id], () => {
+        checkCompletion(req.session.session_id);
+      });
+    });
+  }
 }
 
 function checkCompletion(sessionId) {
@@ -211,7 +202,7 @@ function getEndpoint(vulnKey) {
     weakauth: '/login (POST)',
     upload: '/profile/upload (POST)'
   };
-  return endpoints[vulnKey] || '/';
+  return endpoints[vulnKey] || '';
 }
 
 // -------------------------------------------------------------
@@ -232,29 +223,18 @@ app.get('/profile/upload', (req, res) => res.redirect('/profile'));
 
 // Home Page (Lab Stats & Counter Dashboard)
 app.get('/', (req, res) => {
-  const sessionId = req.session.session_id;
-
   db.all(`SELECT * FROM telemetry`, [], (err, telemetryRows) => {
-    db.get(`SELECT COUNT(DISTINCT session_id) as totalSessions FROM session_progress`, [], (err, r1) => {
-      db.get(`SELECT COUNT(*) as solvedAllSix FROM completed_labs`, [], (err, r2) => {
-        db.get(`SELECT SUM(attempt_count) as totalAttempts FROM telemetry`, [], (err, r3) => {
-          db.get(`SELECT * FROM session_progress WHERE session_id = ?`, [sessionId], (err, userProgress) => {
+    const stats = {
+      totalSessions: globalCounterCache.visited || 1,
+      solvedAllSix: globalCounterCache.solved || 0,
+      totalAttempts: (telemetryRows && telemetryRows.reduce((sum, r) => sum + r.attempt_count, 0)) || 0
+    };
 
-            const stats = {
-              totalSessions: (r1 && r1.totalSessions) || 1,
-              solvedAllSix: (r2 && r2.solvedAllSix) || 0,
-              totalAttempts: (r3 && r3.totalAttempts) || 0
-            };
-
-            res.render('index', {
-              telemetry: telemetryRows || [],
-              stats: stats,
-              userProgress: userProgress || {},
-              getEndpoint: getEndpoint
-            });
-          });
-        });
-      });
+    res.render('index', {
+      telemetry: telemetryRows || [],
+      stats: stats,
+      userProgress: req.session.progress || {},
+      getEndpoint: getEndpoint
     });
   });
 });
