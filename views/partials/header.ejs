@@ -24,8 +24,28 @@
         SecureBank <span>Pro</span>
       </a>
       <div style="font-size: 11px; background: rgba(255, 255, 255, 0.1); padding: 4px 10px; border-radius: 3px; font-weight: bold; color: #d1d8e0; border: 1px solid rgba(255, 255, 255, 0.15); display: flex; align-items: center; gap: 6px;">
-        Visited: <span style="color: #f1c40f;"><%= globalVisited %></span> | Tried: <span style="color: #ffffff;"><%= globalTried %></span> | Solved: <span style="color: #27ae60;"><%= globalSolved %></span>
+        Visited: <span id="stat-visited" style="color: #f1c40f;"><%= globalVisited %></span> | Tried: <span id="stat-tried" style="color: #ffffff;"><%= globalTried %></span> | Solved: <span id="stat-solved" style="color: #27ae60;"><%= globalSolved %></span>
       </div>
+      <script>
+        (function(){
+          const keys = {
+            visited: 'securebankpro_visited_shashank',
+            tried: 'securebankpro_tried_shashank',
+            solved: 'securebankpro_solved_shashank'
+          };
+          function poll(){
+            Object.entries(keys).forEach(([stat, key]) => {
+              fetch('https://countapi.mileshilliard.com/api/v1/get/' + key)
+                .then(r => r.json())
+                .then(d => {
+                  const el = document.getElementById('stat-' + stat);
+                  if(el && d.value !== undefined) el.textContent = d.value;
+                }).catch(()=>{});
+            });
+          }
+          setInterval(poll, 8000);
+        })();
+      </script>
     </div>
     <ul class="nav-links">
       <li><a href="/">Home</a></li>

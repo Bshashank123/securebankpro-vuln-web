@@ -115,16 +115,17 @@ app.use((req, res, next) => {
   });
 });
 
-// Telemetry Helper Functions & CounterAPI
+// Telemetry Helper Functions & CounterAPI (countapi.mileshilliard.com)
 const https = require('https');
 function counterApiRequest(action, key, callback) {
-  const namespace = 'securebankpro_v3_shashank';
+  const fullKey = 'securebankpro_' + key + '_shashank';
+  const apiAction = action === 'up' ? 'hit' : 'get';
   const options = {
-    hostname: 'counterapi.com',
+    hostname: 'countapi.mileshilliard.com',
     port: 443,
-    path: `/api/${namespace}/${action}/${key}`,
+    path: `/api/v1/${apiAction}/${fullKey}`,
     method: 'GET',
-    timeout: 2000
+    timeout: 3000
   };
 
   const req = https.request(options, (res) => {
