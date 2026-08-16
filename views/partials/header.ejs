@@ -9,11 +9,6 @@
 </head>
 <body>
 
-  <!-- Global Telemetry Stats Banner -->
-  <div style="background-color: #ebedef; color: #2c3e50; text-align: center; padding: 4px; font-size: 11px; border-bottom: 1px solid #dcdfe3; font-weight: bold; letter-spacing: 0.5px;">
-    GLOBAL STATISTICS &bull; Users Tried: <span style="color: #2980b9;"><%= globalTried %></span> &bull; Successful Users: <span style="color: #27ae60;"><%= globalSolved %></span>
-  </div>
-
   <!-- Mode Banner Indicator -->
   <div class="mode-banner <%= isSecureMode ? 'secure-mode' : 'attack-mode' %>">
     MODE: <strong><%= isSecureMode ? 'SECURE IMPLEMENTATION (PROTECTED)' : 'ATTACK IMPLEMENTATION (VULNERABLE)' %></strong>
@@ -24,9 +19,14 @@
 
   <!-- Navigation Bar -->
   <nav class="navbar">
-    <a href="/" class="navbar-brand">
-      SecureBank <span>Pro</span>
-    </a>
+    <div style="display: flex; align-items: center; gap: 20px;">
+      <a href="/" class="navbar-brand">
+        SecureBank <span>Pro</span>
+      </a>
+      <div style="font-size: 11px; background: rgba(255, 255, 255, 0.1); padding: 4px 10px; border-radius: 3px; font-weight: bold; color: #d1d8e0; border: 1px solid rgba(255, 255, 255, 0.15); display: flex; align-items: center; gap: 6px;">
+        Tried: <span style="color: #ffffff;"><%= globalTried %></span> | Solved: <span style="color: #27ae60;"><%= globalSolved %></span>
+      </div>
+    </div>
     <ul class="nav-links">
       <li><a href="/">Home</a></li>
       <% if (user) { %>
