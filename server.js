@@ -51,6 +51,26 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// ─── Global Counter Cache (refreshed every 30s in background) ───
+const globalCounterCache = { visited: 0, tried: 0, solved: 0 };
+
+function refreshCounterCache() {
+  counterApiRequest('get', 'visited', (err, val) => {
+    if (!err && !isNaN(parseInt(val, 10))) globalCounterCache.visited = parseInt(val, 10);
+  });
+  counterApiRequest('get', 'tried', (err, val) => {
+    if (!err && !isNaN(parseInt(val, 10))) globalCounterCache.tried = parseInt(val, 10);
+  });
+  counterApiRequest('get', 'solved', (err, val) => {
+    if (!err && !isNaN(parseInt(val, 10))) globalCounterCache.solved = parseInt(val, 10);
+  });
+}
+
+// Refresh cache every 30 seconds
+setInterval(refreshCounterCache, 30000);
+// Initial fetch on startup (delayed 1s to let server bind)
+setTimeout(refreshCounterCache, 1000);
+
 // Initialize Global Session & Telemetry Middleware
 app.use((req, res, next) => {
   if (req.session.isSecureMode === undefined) {
@@ -58,8 +78,10 @@ app.use((req, res, next) => {
   }
   if (!req.session.session_id) {
     req.session.session_id = crypto.randomBytes(12).toString('hex');
-    // Increment global visited counter on CounterAPI.com
-    counterApiRequest('up', 'visited', () => {});
+    // Increment global visited counter (fire-and-forget)
+    counterApiRequest('up', 'visited', (err, val) => {
+      if (!err && val) globalCounterCache.visited = parseInt(val, 10);
+    });
   }
   if (!req.session.csrfToken) {
     req.session.csrfToken = crypto.randomBytes(24).toString('hex');
@@ -68,51 +90,17 @@ app.use((req, res, next) => {
     req.session.failedLoginAttempts = 0;
   }
 
-  // Populate Locals for Views
+  // Populate Locals for Views (instant, no API calls)
   res.locals.user = req.session.user || null;
   res.locals.isSecureMode = req.session.isSecureMode;
   res.locals.csrfToken = req.session.csrfToken;
+  res.locals.globalVisited = globalCounterCache.visited;
+  res.locals.globalTried = globalCounterCache.tried;
+  res.locals.globalSolved = globalCounterCache.solved;
+  res.locals.justSolved = req.session.justSolved || null;
+  delete req.session.justSolved;
 
-  // Retrieve global stats from CounterAPI.com with SQLite fallback
-  counterApiRequest('get', 'visited', (err0, visitedVal) => {
-    counterApiRequest('get', 'tried', (err, triedVal) => {
-      counterApiRequest('get', 'solved', (err2, solvedVal) => {
-        const visited = parseInt(visitedVal, 10);
-        const tried = parseInt(triedVal, 10);
-        const solved = parseInt(solvedVal, 10);
-
-        res.locals.globalVisited = isNaN(visited) ? 0 : visited;
-        
-        if (isNaN(tried)) {
-          db.get(`SELECT COUNT(DISTINCT session_id) as tried FROM session_progress`, [], (err, r1) => {
-            res.locals.globalTried = (r1 && r1.tried) || 0;
-            fetchSolved();
-          });
-        } else {
-          res.locals.globalTried = tried;
-          fetchSolved();
-        }
-
-        function fetchSolved() {
-          if (isNaN(solved)) {
-            db.get(`SELECT COUNT(*) as solved FROM completed_labs`, [], (err, r2) => {
-              res.locals.globalSolved = (r2 && r2.solved) || 0;
-              finishMiddleware();
-            });
-          } else {
-            res.locals.globalSolved = solved;
-            finishMiddleware();
-          }
-        }
-
-        function finishMiddleware() {
-          res.locals.justSolved = req.session.justSolved || null;
-          delete req.session.justSolved;
-          next();
-        }
-      });
-    });
-  });
+  next();
 });
 
 // Telemetry Helper Functions & CounterAPI (countapi.mileshilliard.com)
@@ -167,7 +155,9 @@ function recordAttempt(vulnKey, req, isSuccess = false) {
   // Increment global tried counter only once per session
   if (!req.session.triedCounted) {
     req.session.triedCounted = true;
-    counterApiRequest('up', 'tried', () => {});
+    counterApiRequest('up', 'tried', (err, val) => {
+      if (!err && val) globalCounterCache.tried = parseInt(val, 10);
+    });
   }
 
   if (isSuccess) {
@@ -180,6 +170,17 @@ function recordAttempt(vulnKey, req, isSuccess = false) {
     [sessionId],
     () => {
       if (isSuccess) {
+        // Track which vulns this session has already solved to avoid double-counting
+        if (!req.session.solvedVulns) req.session.solvedVulns = {};
+        
+        if (!req.session.solvedVulns[vulnKey]) {
+          req.session.solvedVulns[vulnKey] = true;
+          // Increment global solved counter for each unique vuln solve
+          counterApiRequest('up', 'solved', (err, val) => {
+            if (!err && val) globalCounterCache.solved = parseInt(val, 10);
+          });
+        }
+
         db.run(`UPDATE telemetry SET solve_count = solve_count + 1 WHERE vuln_key = ?`, [vulnKey]);
         db.run(`UPDATE session_progress SET ${vulnKey} = 1 WHERE session_id = ?`, [sessionId], () => {
           checkCompletion(sessionId);
@@ -197,8 +198,6 @@ function checkCompletion(sessionId) {
       if (row && row.sqli && row.xss && row.idor && row.csrf && row.weakauth && row.upload && !row.completed) {
         db.run(`UPDATE session_progress SET completed = 1 WHERE session_id = ?`, [sessionId]);
         db.run(`INSERT OR IGNORE INTO completed_labs (session_id) VALUES (?)`, [sessionId]);
-        // Increment global solved counter on CounterAPI.com
-        counterApiRequest('up', 'solved', () => {});
       }
     }
   );
