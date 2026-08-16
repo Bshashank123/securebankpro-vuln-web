@@ -58,8 +58,8 @@ app.use((req, res, next) => {
   }
   if (!req.session.session_id) {
     req.session.session_id = crypto.randomBytes(12).toString('hex');
-    // Increment global tried counter on CounterAPI.com
-    counterApiRequest('up', 'tried', () => {});
+    // Increment global visited counter on CounterAPI.com
+    counterApiRequest('up', 'visited', () => {});
   }
   if (!req.session.csrfToken) {
     req.session.csrfToken = crypto.randomBytes(24).toString('hex');
@@ -74,38 +74,43 @@ app.use((req, res, next) => {
   res.locals.csrfToken = req.session.csrfToken;
 
   // Retrieve global stats from CounterAPI.com with SQLite fallback
-  counterApiRequest('get', 'tried', (err, triedVal) => {
-    counterApiRequest('get', 'solved', (err2, solvedVal) => {
-      const tried = parseInt(triedVal, 10);
-      const solved = parseInt(solvedVal, 10);
-      
-      if (isNaN(tried)) {
-        db.get(`SELECT COUNT(DISTINCT session_id) as tried FROM session_progress`, [], (err, r1) => {
-          res.locals.globalTried = (r1 && r1.tried) || 0;
-          fetchSolved();
-        });
-      } else {
-        res.locals.globalTried = tried;
-        fetchSolved();
-      }
+  counterApiRequest('get', 'visited', (err0, visitedVal) => {
+    counterApiRequest('get', 'tried', (err, triedVal) => {
+      counterApiRequest('get', 'solved', (err2, solvedVal) => {
+        const visited = parseInt(visitedVal, 10);
+        const tried = parseInt(triedVal, 10);
+        const solved = parseInt(solvedVal, 10);
 
-      function fetchSolved() {
-        if (isNaN(solved)) {
-          db.get(`SELECT COUNT(*) as solved FROM completed_labs`, [], (err, r2) => {
-            res.locals.globalSolved = (r2 && r2.solved) || 0;
-            finishMiddleware();
+        res.locals.globalVisited = isNaN(visited) ? 0 : visited;
+        
+        if (isNaN(tried)) {
+          db.get(`SELECT COUNT(DISTINCT session_id) as tried FROM session_progress`, [], (err, r1) => {
+            res.locals.globalTried = (r1 && r1.tried) || 0;
+            fetchSolved();
           });
         } else {
-          res.locals.globalSolved = solved;
-          finishMiddleware();
+          res.locals.globalTried = tried;
+          fetchSolved();
         }
-      }
 
-      function finishMiddleware() {
-        res.locals.justSolved = req.session.justSolved || null;
-        delete req.session.justSolved;
-        next();
-      }
+        function fetchSolved() {
+          if (isNaN(solved)) {
+            db.get(`SELECT COUNT(*) as solved FROM completed_labs`, [], (err, r2) => {
+              res.locals.globalSolved = (r2 && r2.solved) || 0;
+              finishMiddleware();
+            });
+          } else {
+            res.locals.globalSolved = solved;
+            finishMiddleware();
+          }
+        }
+
+        function finishMiddleware() {
+          res.locals.justSolved = req.session.justSolved || null;
+          delete req.session.justSolved;
+          next();
+        }
+      });
     });
   });
 });
@@ -157,6 +162,12 @@ function recordAttempt(vulnKey, req, isSuccess = false) {
   );
 
   const sessionId = req.session.session_id;
+
+  // Increment global tried counter only once per session
+  if (!req.session.triedCounted) {
+    req.session.triedCounted = true;
+    counterApiRequest('up', 'tried', () => {});
+  }
 
   if (isSuccess) {
     req.session.justSolved = vulnKey;
