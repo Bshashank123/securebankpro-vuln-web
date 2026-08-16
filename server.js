@@ -51,7 +51,19 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ─── Global Counter Cache (refreshed every 30s in background) ───
-const globalCounterCache = { visited: 0, tried: 0, solved: 0 };
+const globalCounterCache = {
+  visited: 0,
+  tried: 0,
+  solved: 0,
+  vulns: {
+    sqli: { attempts: 0, solved: 0 },
+    xss: { attempts: 0, solved: 0 },
+    idor: { attempts: 0, solved: 0 },
+    csrf: { attempts: 0, solved: 0 },
+    weakauth: { attempts: 0, solved: 0 },
+    upload: { attempts: 0, solved: 0 }
+  }
+};
 
 function refreshCounterCache() {
   counterApiRequest('get', 'visited', (err, val) => {
@@ -62,6 +74,16 @@ function refreshCounterCache() {
   });
   counterApiRequest('get', 'solved', (err, val) => {
     if (!err && !isNaN(parseInt(val, 10))) globalCounterCache.solved = parseInt(val, 10);
+  });
+
+  const vulnKeys = ['sqli', 'xss', 'idor', 'csrf', 'weakauth', 'upload'];
+  vulnKeys.forEach(v => {
+    counterApiRequest('get', `${v}_attempts`, (err, val) => {
+      if (!err && !isNaN(parseInt(val, 10))) globalCounterCache.vulns[v].attempts = parseInt(val, 10);
+    });
+    counterApiRequest('get', `${v}_solved`, (err, val) => {
+      if (!err && !isNaN(parseInt(val, 10))) globalCounterCache.vulns[v].solved = parseInt(val, 10);
+    });
   });
 }
 
@@ -149,6 +171,13 @@ function recordAttempt(vulnKey, req, isSuccess = false) {
     [timestamp, vulnKey]
   );
 
+  // Increment global vuln attempts on CountAPI
+  counterApiRequest('up', `${vulnKey}_attempts`, (err, val) => {
+    if (!err && val && globalCounterCache.vulns[vulnKey]) {
+      globalCounterCache.vulns[vulnKey].attempts = parseInt(val, 10);
+    }
+  });
+
   // Increment global tried counter only once per session
   if (!req.session.triedCounted) {
     req.session.triedCounted = true;
@@ -167,6 +196,12 @@ function recordAttempt(vulnKey, req, isSuccess = false) {
       // Increment global solved counter
       counterApiRequest('up', 'solved', (err, val) => {
         if (!err && val) globalCounterCache.solved = parseInt(val, 10);
+      });
+      // Increment global vuln solved on CountAPI
+      counterApiRequest('up', `${vulnKey}_solved`, (err, val) => {
+        if (!err && val && globalCounterCache.vulns[vulnKey]) {
+          globalCounterCache.vulns[vulnKey].solved = parseInt(val, 10);
+        }
       });
       // Update local db telemetry solve count
       db.run(`UPDATE telemetry SET solve_count = solve_count + 1 WHERE vuln_key = ?`, [vulnKey]);
@@ -227,11 +262,20 @@ app.get('/', (req, res) => {
     const stats = {
       totalSessions: globalCounterCache.visited || 1,
       solvedAllSix: globalCounterCache.solved || 0,
-      totalAttempts: (telemetryRows && telemetryRows.reduce((sum, r) => sum + r.attempt_count, 0)) || 0
+      totalAttempts: Object.values(globalCounterCache.vulns).reduce((sum, v) => sum + v.attempts, 0)
     };
 
+    const enrichedTelemetry = (telemetryRows || []).map(row => {
+      const globalStats = globalCounterCache.vulns[row.vuln_key] || { attempts: 0, solved: 0 };
+      return {
+        ...row,
+        attempt_count: globalStats.attempts,
+        solve_count: globalStats.solved
+      };
+    });
+
     res.render('index', {
-      telemetry: telemetryRows || [],
+      telemetry: enrichedTelemetry,
       stats: stats,
       userProgress: req.session.progress || {},
       getEndpoint: getEndpoint
