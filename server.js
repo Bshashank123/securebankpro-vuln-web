@@ -58,6 +58,8 @@ app.use((req, res, next) => {
   }
   if (!req.session.session_id) {
     req.session.session_id = crypto.randomBytes(12).toString('hex');
+    // Increment global tried counter on CounterAPI.com
+    counterApiRequest('up', 'tried', () => {});
   }
   if (!req.session.csrfToken) {
     req.session.csrfToken = crypto.randomBytes(24).toString('hex');
@@ -71,22 +73,81 @@ app.use((req, res, next) => {
   res.locals.isSecureMode = req.session.isSecureMode;
   res.locals.csrfToken = req.session.csrfToken;
 
-  // Retrieve global stats
-  db.get(`SELECT COUNT(DISTINCT session_id) as tried FROM session_progress`, [], (err, r1) => {
-    db.get(`SELECT COUNT(*) as solved FROM completed_labs`, [], (err, r2) => {
-      res.locals.globalTried = (r1 && r1.tried) || 0;
-      res.locals.globalSolved = (r2 && r2.solved) || 0;
+  // Retrieve global stats from CounterAPI.com with SQLite fallback
+  counterApiRequest('get', 'tried', (err, triedVal) => {
+    counterApiRequest('get', 'solved', (err2, solvedVal) => {
+      const tried = parseInt(triedVal, 10);
+      const solved = parseInt(solvedVal, 10);
       
-      // Pass down justSolved and then clear it
-      res.locals.justSolved = req.session.justSolved || null;
-      delete req.session.justSolved;
-      
-      next();
+      if (isNaN(tried)) {
+        db.get(`SELECT COUNT(DISTINCT session_id) as tried FROM session_progress`, [], (err, r1) => {
+          res.locals.globalTried = (r1 && r1.tried) || 0;
+          fetchSolved();
+        });
+      } else {
+        res.locals.globalTried = tried;
+        fetchSolved();
+      }
+
+      function fetchSolved() {
+        if (isNaN(solved)) {
+          db.get(`SELECT COUNT(*) as solved FROM completed_labs`, [], (err, r2) => {
+            res.locals.globalSolved = (r2 && r2.solved) || 0;
+            finishMiddleware();
+          });
+        } else {
+          res.locals.globalSolved = solved;
+          finishMiddleware();
+        }
+      }
+
+      function finishMiddleware() {
+        res.locals.justSolved = req.session.justSolved || null;
+        delete req.session.justSolved;
+        next();
+      }
     });
   });
 });
 
-// Telemetry Helper Functions
+// Telemetry Helper Functions & CounterAPI
+const https = require('https');
+function counterApiRequest(action, key, callback) {
+  const namespace = 'securebankpro_v3_shashank';
+  const options = {
+    hostname: 'counterapi.com',
+    port: 443,
+    path: `/api/${namespace}/${action}/${key}`,
+    method: 'GET',
+    timeout: 2000
+  };
+
+  const req = https.request(options, (res) => {
+    let body = '';
+    res.on('data', (chunk) => body += chunk);
+    res.on('end', () => {
+      try {
+        const json = JSON.parse(body);
+        if (json && json.value !== undefined) {
+          callback(null, json.value);
+        } else {
+          callback(new Error('Invalid response'));
+        }
+      } catch (e) {
+        callback(e);
+      }
+    });
+  });
+
+  req.on('error', (err) => callback(err));
+  req.on('timeout', () => {
+    req.destroy();
+    callback(new Error('Timeout'));
+  });
+
+  req.end();
+}
+
 function recordAttempt(vulnKey, req, isSuccess = false) {
   const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
   
@@ -124,6 +185,8 @@ function checkCompletion(sessionId) {
       if (row && row.sqli && row.xss && row.idor && row.csrf && row.weakauth && row.upload && !row.completed) {
         db.run(`UPDATE session_progress SET completed = 1 WHERE session_id = ?`, [sessionId]);
         db.run(`INSERT OR IGNORE INTO completed_labs (session_id) VALUES (?)`, [sessionId]);
+        // Increment global solved counter on CounterAPI.com
+        counterApiRequest('up', 'solved', () => {});
       }
     }
   );
